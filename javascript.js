@@ -1,4 +1,4 @@
-const cart = [];
+const cart = JSON.parse(localStorage.getItem("biajoias-cart") || "[]");
 const cartCount = document.querySelector("#cart-count");
 const toast = document.querySelector("#toast");
 const cartDialog = document.querySelector("#cart-dialog");
@@ -22,7 +22,9 @@ const money = value => new Intl.NumberFormat("pt-BR", { style: "currency", curre
 let toastTimer;
 
 function updateCart() {
-  cartCount.textContent = cart.length;
+  localStorage.setItem("biajoias-cart", JSON.stringify(cart));
+  if (cartCount) cartCount.textContent = cart.length;
+  if (!cartItems) return;
   cartItems.replaceChildren();
   cartEmpty.hidden = cart.length > 0;
   cartItems.hidden = cart.length === 0;
@@ -45,7 +47,7 @@ function updateCart() {
     remove.type = "button";
     remove.className = "cart-remove";
     remove.dataset.remove = String(index);
-    remove.setAttribute("aria-label", `Remover ${item.name} da sacola`);
+    remove.setAttribute("aria-label", `Remover ${item.name} do pedido`);
     remove.textContent = "Remover";
     row.append(details, remove);
     cartItems.append(row);
@@ -102,22 +104,13 @@ function buildOrderEmail(txid, total, payment) {
 }
 
 document.querySelectorAll("[data-price]").forEach(button => button.addEventListener("click", () => addItem(button.dataset.name, button.dataset.price)));
+if (cartItems) {
 document.querySelectorAll('input[name="payment"]').forEach(input => input.addEventListener("change", () => {
   const isCard = input.checked && input.value === "card";
   installmentField.hidden = !isCard;
   installmentsSelect.required = isCard;
   checkoutSubmit.childNodes[0].textContent = isCard ? "Solicitar link de pagamento " : "Gerar Pix para pagamento ";
 }));
-document.querySelector(".bag").addEventListener("click", event => {
-  event.preventDefault();
-  cartView.hidden = false;
-  checkoutView.hidden = true;
-  document.querySelector("#checkout-form").hidden = false;
-  pixResult.hidden = true;
-  cardResult.hidden = true;
-  updateCart();
-  cartDialog.showModal();
-});
 document.querySelectorAll(".cart-close").forEach(button => button.addEventListener("click", () => cartDialog.close()));
 document.querySelector("#cart-checkout").addEventListener("click", () => {
   if (cart.length === 0) return;
@@ -177,8 +170,9 @@ cartItems.addEventListener("click", event => {
   if (!button) return;
   const removed = cart.splice(Number(button.dataset.remove), 1)[0];
   updateCart();
-  showToast(`${removed.name} removida da sacola.`);
+  showToast(`${removed.name} removida do pedido.`);
 });
+}
 
 document.querySelectorAll(".filter").forEach(button => button.addEventListener("click", () => {
   document.querySelector(".filter.active")?.classList.remove("active");
@@ -196,18 +190,21 @@ document.querySelectorAll(".filter").forEach(button => button.addEventListener("
 }));
 
 const menuButton = document.querySelector(".menu-toggle");
-menuButton.addEventListener("click", () => {
-  const expanded = menuButton.getAttribute("aria-expanded") === "true";
-  menuButton.setAttribute("aria-expanded", String(!expanded));
-  menuButton.setAttribute("aria-label", expanded ? "Abrir menu" : "Fechar menu");
-  document.querySelector("#nav").classList.toggle("open", !expanded);
-});
-document.querySelectorAll("#nav a").forEach(link => link.addEventListener("click", () => {
-  document.querySelector("#nav").classList.remove("open");
-  menuButton.setAttribute("aria-expanded", "false");
-  menuButton.setAttribute("aria-label", "Abrir menu");
-}));
-document.querySelector("#newsletter-form").addEventListener("submit", event => {
+if (menuButton) {
+  menuButton.addEventListener("click", () => {
+    const expanded = menuButton.getAttribute("aria-expanded") === "true";
+    menuButton.setAttribute("aria-expanded", String(!expanded));
+    menuButton.setAttribute("aria-label", expanded ? "Abrir menu" : "Fechar menu");
+    document.querySelector("#nav").classList.toggle("open", !expanded);
+  });
+  document.querySelectorAll("#nav a").forEach(link => link.addEventListener("click", () => {
+    document.querySelector("#nav").classList.remove("open");
+    menuButton.setAttribute("aria-expanded", "false");
+    menuButton.setAttribute("aria-label", "Abrir menu");
+  }));
+}
+const newsletterForm = document.querySelector("#newsletter-form");
+if (newsletterForm) newsletterForm.addEventListener("submit", event => {
   event.preventDefault();
   document.querySelector("#newsletter-status").textContent = "Obrigada! Seu e-mail foi cadastrado.";
   event.currentTarget.reset();
