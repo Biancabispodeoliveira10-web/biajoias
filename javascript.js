@@ -124,25 +124,40 @@ document.querySelector("#checkout-back").addEventListener("click", () => {
   cartView.hidden = false;
   document.querySelector("#cart-checkout").focus();
 });
-checkoutForm.addEventListener("submit", event => {
+checkoutForm.addEventListener("submit", async event => {
   event.preventDefault();
-  const txid = `BJ${Date.now().toString(36).toUpperCase()}`.slice(0, 25);
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
   const payment = new FormData(checkoutForm).get("payment");
-  buildOrderEmail(txid, total, payment);
-  checkoutForm.hidden = true;
-  if (payment === "card") {
-    pixResult.hidden = true;
-  cardResult.hidden = true;
-    cardResult.hidden = false;
-    document.querySelector("#card-result-title").focus();
-    return;
+  const button = document.querySelector("#checkout-submit");
+  button.disabled = true;
+  checkoutStatus.textContent = "Registrando seu pedido…";
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customer: Object.fromEntries(new FormData(checkoutForm).entries()), items: cart, payment })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Não foi possível registrar o pedido.");
+    const total = result.totalCents / 100;
+    buildOrderEmail(result.orderId, total, payment);
+    checkoutStatus.textContent = "";
+    checkoutForm.hidden = true;
+    if (payment === "card") {
+      pixResult.hidden = true;
+      cardResult.hidden = false;
+      document.querySelector("#card-result-title").focus();
+      return;
+    }
+    pixCode.value = createPixCode(result.orderId);
+    cardResult.hidden = true;
+    pixResult.hidden = false;
+    pixStatus.textContent = `Pedido ${result.orderId} registrado. O frete será calculado antes da confirmação do pagamento.`;
+    document.querySelector("#pix-title").focus();
+  } catch (error) {
+    checkoutStatus.textContent = error.message || "Não foi possível registrar o pedido. Tente novamente.";
+  } finally {
+    button.disabled = false;
   }
-  pixCode.value = createPixCode(txid);
-  cardResult.hidden = true;
-  pixResult.hidden = false;
-  pixStatus.textContent = `Código Pix gerado para ${money(total)} em peças. O frete ainda será calculado.`;
-  document.querySelector("#pix-title").focus();
 });
 document.querySelector("#edit-card-order").addEventListener("click", () => {
   cardResult.hidden = true;
